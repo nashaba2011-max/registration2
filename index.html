@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تسجيل عائلة النشابة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#0e1d18; --card:#1a3027; --card2:#14261f;
+    --gold:#d8b76a; --gold-soft:#f1dca6; --text:#f4efe3; --muted:#a3b3a8;
+    --male:#3d7a67; --female:#9b5a6d; --err:#f0a898; --ok:#9fd8b8;
+    --line:rgba(216,183,106,.25); --radius:16px;
+    --font:'Tajawal',system-ui,sans-serif; --title:'Amiri',serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100dvh;font-family:var(--font);color:var(--text);
+    background:
+      radial-gradient(circle at 85% -10%, #24473a 0, transparent 45%),
+      radial-gradient(circle at 0% 110%, #2d2716 0, transparent 40%),
+      var(--bg);
+    background-attachment:fixed;
+  }
+  button,input,select{font:inherit;color:inherit}
+  .wrap{max-width:980px;margin:0 auto;padding:0 16px 40px}
+
+  header{text-align:center;padding:34px 0 20px}
+  .mark{
+    width:64px;height:64px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;
+    font-family:var(--title);font-size:34px;color:#1b1608;
+    background:radial-gradient(circle at 30% 30%,var(--gold-soft),var(--gold) 60%,#a8873e);
+    box-shadow:0 0 0 5px rgba(216,183,106,.15),0 8px 20px rgba(0,0,0,.4);
+  }
+  h1{margin:0;font-family:var(--title);font-size:32px;color:var(--gold-soft)}
+  header p{margin:6px 0 0;color:var(--muted)}
+
+  .tabs{display:flex;gap:6px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:999px;padding:5px;margin:0 auto 22px;max-width:420px}
+  .tabs button{flex:1;border:0;background:none;padding:10px;border-radius:999px;cursor:pointer;font-weight:700;color:var(--muted)}
+  .tabs button[aria-selected="true"]{background:var(--gold);color:#1b1608}
+  .count{display:inline-block;min-width:22px;padding:0 6px;border-radius:10px;background:rgba(0,0,0,.2);font-size:12px;margin-inline-start:4px}
+
+  .card{background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 14px 40px rgba(0,0,0,.35)}
+  form.card{max-width:560px;margin:0 auto}
+
+  .photo{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:18px}
+  .photo label{
+    width:112px;height:112px;border-radius:50%;cursor:pointer;display:grid;place-items:center;overflow:hidden;position:relative;
+    border:2px dashed rgba(216,183,106,.55);background:rgba(0,0,0,.2);color:var(--gold);font-size:13px;text-align:center;line-height:1.5;
+    transition:border-color .2s,background .2s;
+  }
+  .photo label:hover{border-color:var(--gold);background:rgba(216,183,106,.08)}
+  .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .photo .rm{border:0;background:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline}
+
+  .field{margin-bottom:14px}
+  .field > label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  .req{color:var(--gold)}
+  .field input,.field select{
+    width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
+    background:rgba(0,0,0,.22);font-size:16px;outline:none;transition:border-color .2s;
+  }
+  .field select option{background:#16291f}
+  .field input:focus,.field select:focus{border-color:var(--gold)}
+  .field.bad input,.field.bad select{border-color:var(--err)}
+  .hint{font-size:12.5px;color:var(--err);margin-top:5px;min-height:0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .sec{display:flex;align-items:center;gap:10px;margin:22px 0 14px;color:var(--gold);font-weight:700;font-size:14px}
+  .sec::after{content:"";flex:1;height:1px;background:var(--line)}
+  .lock{font-size:12.5px;color:var(--muted);margin:-6px 0 14px;display:flex;gap:6px;align-items:flex-start;line-height:1.6}
+  .kids{display:flex;flex-direction:column;gap:8px}
+  .kid{display:flex;gap:8px}
+  .kid input{flex:1}
+  .kid button{flex:none;width:44px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.2);cursor:pointer;font-size:18px;color:var(--muted)}
+  .kid button:hover{border-color:var(--err);color:var(--err)}
+  .addkid{margin-top:8px;padding:9px 14px;border-radius:12px;border:1px dashed rgba(216,183,106,.55);background:none;cursor:pointer;color:var(--gold);width:100%}
+  .addkid:hover{background:rgba(216,183,106,.08)}
+  .m-kids{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .m-kids span{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--text)}
+
+  .blood{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .blood{position:relative}
+  .field .blood input{position:absolute;width:1px;height:1px;padding:0;margin:0;opacity:0;pointer-events:none;inset-inline-start:0;top:0}
+  .blood label{
+    display:grid;place-items:center;padding:10px 0;border-radius:12px;cursor:pointer;font-weight:800;direction:ltr;
+    border:1px solid var(--line);background:rgba(0,0,0,.18);transition:.15s;
+  }
+  .gender{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative}
+  .field .gender input{position:absolute;width:1px;height:1px;padding:0;margin:0;opacity:0;pointer-events:none;inset-inline-start:0;top:0}
+  .gender label{display:grid;place-items:center;padding:11px 0;border-radius:12px;cursor:pointer;font-weight:700;border:1px solid var(--line);background:rgba(0,0,0,.18);transition:.15s}
+  .gender input:checked + label{background:var(--male);border-color:#8fd0b8;color:#fff}
+  .gender input[value="أنثى"]:checked + label{background:var(--female);border-color:#e0a2b3}
+  .gender input:focus-visible + label{outline:2px solid var(--gold-soft);outline-offset:2px}
+  .field.bad .gender label{border-color:var(--err)}
+  .kid .no{flex:none;width:74px;display:grid;place-items:center;font-size:13px;color:var(--gold);border:1px solid var(--line);border-radius:12px;background:rgba(216,183,106,.06)}
+  .blood label.wide{grid-column:span 4;direction:rtl;font-weight:500;color:var(--muted)}
+  .blood input:checked + label{background:#8a3a3a;border-color:#e59a8a;color:#fff}
+  .blood input:focus-visible + label{outline:2px solid var(--gold-soft);outline-offset:2px}
+
+  .submit{
+    width:100%;margin-top:8px;padding:14px;border:0;border-radius:14px;cursor:pointer;font-size:17px;font-weight:800;
+    background:var(--gold);color:#1b1608;transition:background .2s,opacity .2s;
+  }
+  .submit:hover{background:var(--gold-soft)}
+  .submit:disabled{opacity:.6;cursor:wait}
+  .submit.saved,.submit.saved:hover{background:#2e9d5b;color:#fff;opacity:1}
+  .msg{margin-top:12px;text-align:center;font-weight:700;min-height:22px}
+  .msg.ok,.msg.err{color:#fff;border-radius:12px;padding:10px}
+  .msg.ok{background:#2e9d5b} .msg.err{background:#a3483b}
+  .msg:empty{padding:0}
+  .note{font-size:12.5px;color:var(--muted);text-align:center;margin:-6px 0 16px}
+  .family{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:14px 0 2px;color:var(--gold-soft);font-weight:800;font-size:15px}
+  .family:first-child{margin-top:0}
+  .family::after{content:"";flex:1;height:1px;background:var(--line)}
+  .family small{font-weight:500;color:var(--muted);font-size:12.5px}
+
+  /* القائمة */
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .toolbar input,.toolbar select{
+    padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:rgba(0,0,0,.22);outline:none;font-size:15px;
+  }
+  .toolbar input{flex:1 1 220px}
+  .toolbar select option{background:#16291f}
+  .summary{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .pill{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .pill b{color:var(--gold);direction:ltr;display:inline-block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+  .member{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:var(--radius);background:linear-gradient(160deg,var(--card),var(--card2));border:1px solid var(--line)}
+  .av{
+    flex:none;width:58px;height:58px;border-radius:50%;overflow:hidden;display:grid;place-items:center;
+    background:var(--male);font-weight:800;font-size:22px;border:2px solid rgba(216,183,106,.5);cursor:default;padding:0;
+  }
+  .av.f{background:var(--female)}
+  .av img{width:100%;height:100%;object-fit:cover}
+  button.av{cursor:zoom-in}
+  .m-info{min-width:0;flex:1}
+  .m-name{font-weight:800;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-sub{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.6}
+  .bt{flex:none;align-self:flex-start;direction:ltr;font-weight:800;font-size:13px;padding:3px 8px;border-radius:8px;background:rgba(138,58,58,.35);border:1px solid rgba(229,154,138,.5);color:#ffd2c8}
+  .state{text-align:center;color:var(--muted);padding:40px 10px}
+  .retry{margin-top:10px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:none;cursor:pointer}
+
+  dialog{border:0;padding:0;background:none;max-width:92vw}
+  dialog::backdrop{background:rgba(0,0,0,.8)}
+  dialog img{display:block;max-width:92vw;max-height:84dvh;border-radius:16px}
+  dialog p{text-align:center;color:#fff;margin:10px 0 0;font-weight:700}
+
+  @media (max-width:520px){
+    h1{font-size:26px}
+    .card{padding:18px}
+    .row{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark" aria-hidden="true">ن</div>
+    <h1>تسجيل أفراد عائلة النشابة</h1>
+    <p>سجّل بياناتك وبيانات أسرتك</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabForm" aria-selected="true">تسجيل فرد</button>
+    <button role="tab" id="tabList" aria-selected="false">المسجّلون <span class="count" id="count">…</span></button>
+  </div>
+
+  <!-- ===== النموذج ===== -->
+  <form class="card" id="form" novalidate>
+    <div class="photo">
+      <label for="photo" id="photoBox">
+        <span id="photoTxt">📷<br>إضافة صورة</span>
+        <img id="photoPrev" alt="" hidden>
+      </label>
+      <input type="file" id="photo" accept="image/*" hidden>
+      <button type="button" class="rm" id="photoRm" hidden>إزالة الصورة</button>
+    </div>
+    <p class="note">الحقول المعلّمة بـ <span class="req">*</span> إلزامية، والباقي اختياري</p>
+
+    <div class="field" data-f="full_name">
+      <label for="full_name">الاسم الكامل <span class="req">*</span></label>
+      <input id="full_name" maxlength="80" placeholder="مثال: عيسى محمد عبدالله النشابة" autocomplete="name">
+      <div class="hint"></div>
+    </div>
+
+    <div class="field" data-f="gender">
+      <label>الجنس <span class="req">*</span></label>
+      <div class="gender">
+        <input type="radio" name="gender" id="gM" value="ذكر"><label for="gM">ذكر</label>
+        <input type="radio" name="gender" id="gF" value="أنثى"><label for="gF">أنثى</label>
+      </div>
+      <div class="hint"></div>
+    </div>
+
+    <div class="row">
+      <div class="field" data-f="cpr">
+        <label for="cpr">الرقم الشخصي</label>
+        <input id="cpr" inputmode="numeric" maxlength="9" placeholder="9 أرقام" dir="ltr" style="text-align:right">
+        <div class="hint"></div>
+      </div>
+      <div class="field" data-f="passport_no">
+        <label for="passport_no">رقم الجواز</label>
+        <input id="passport_no" maxlength="12" placeholder="مثال: 2345678" dir="ltr" style="text-align:right;text-transform:uppercase">
+        <div class="hint"></div>
+      </div>
+    </div>
+    <p class="lock">🔒 الرقم الشخصي ورقم الجواز سريّان — لا يظهران في قائمة المسجّلين ولا يطّلع عليهما إلا مشرف النظام.</p>
+
+    <div class="field" data-f="mother_name">
+      <label for="mother_name">اسم الأم</label>
+      <input id="mother_name" maxlength="80" placeholder="الاسم الكامل للأم">
+      <div class="hint"></div>
+    </div>
+
+    <div class="row">
+      <div class="field" data-f="relation">
+        <label for="relation">صلة القرابة <span class="req">*</span></label>
+        <select id="relation">
+          <option value="">اختر…</option>
+          <option>رب الأسرة</option><option>زوجة</option><option>ابن</option><option>بنت</option>
+          <option>حفيد</option><option>حفيدة</option><option>أب</option><option>أم</option>
+          <option>أخ</option><option>أخت</option><option>أخرى</option>
+        </select>
+        <div class="hint"></div>
+      </div>
+      <div class="field" data-f="head_name" id="headField">
+        <label for="head_name">اسم رب الأسرة</label>
+        <input id="head_name" maxlength="80" placeholder="مثال: محمد عبدالله">
+        <div class="hint"></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field" data-f="area">
+        <label for="area">السكن (المنطقة) <span class="req">*</span></label>
+        <input id="area" maxlength="50" list="areas" placeholder="مثال: المحرق">
+        <datalist id="areas">
+          <option>المنامة</option><option>المحرق</option><option>الرفاع</option><option>مدينة عيسى</option>
+          <option>مدينة حمد</option><option>عالي</option><option>سترة</option><option>البديع</option>
+          <option>الحد</option><option>عراد</option><option>سند</option><option>توبلي</option>
+          <option>جد حفص</option><option>السنابس</option><option>الجفير</option><option>عوالي</option>
+          <option>سار</option><option>الزنج</option><option>مدينة زايد</option><option>ديار المحرق</option>
+          <option>مدينة سلمان</option><option>مدينة خليفة</option><option>البسيتين</option><option>قلالي</option>
+        </datalist>
+        <div class="hint"></div>
+      </div>
+      <div class="field" data-f="block">
+        <label for="block">رقم المجمع</label>
+        <input id="block" inputmode="numeric" maxlength="4" placeholder="مثال: 204">
+        <div class="hint"></div>
+      </div>
+    </div>
+
+    <div class="field" data-f="blood_type">
+      <label>فصيلة الدم</label>
+      <div class="blood" id="blood"></div>
+      <div class="hint"></div>
+    </div>
+
+    <div class="sec">الأسرة</div>
+    <div class="field" data-f="wives" id="wivesField" hidden>
+      <label>الزوجات</label>
+      <div class="kids" id="wives"></div>
+      <div class="hint"></div>
+    </div>
+    <div class="field" data-f="children">
+      <label>الأبناء</label>
+      <div class="kids" id="kids"></div>
+      <button type="button" class="addkid" id="addKid">+ إضافة ابن / بنت</button>
+      <div class="hint"></div>
+    </div>
+
+    <button class="submit" id="submitBtn" type="submit">تسجيل</button>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </form>
+
+  <!-- ===== القائمة ===== -->
+  <section id="list" hidden>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="ابحث بالاسم أو الأم أو الأبناء…">
+      <select id="fArea"><option value="">كل المناطق</option></select>
+      <select id="fBlood"><option value="">كل الفصائل</option></select>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div id="members" class="grid"></div>
+  </section>
+</div>
+
+<dialog id="viewer"><img id="viewerImg" alt=""><p id="viewerName"></p></dialog>
+
+<script>
+const CONFIG = {
+  url: 'https://lzadmbjhcxqvafykntsp.supabase.co',
+  key: 'sb_publishable_X4VEzOBLuT8d-b7Tsz9IJQ_1QHW9BIe',   // مفتاح عام — آمن مع سياسات RLS
+  table: 'family_members',
+  bucket: 'family-photos'
+};
+const BLOOD = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+// الأعمدة المسموح عرضها — الرقم الشخصي والجواز غير قابلين للقراءة من الموقع
+const PUBLIC_COLS = 'id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives';
+const FEMALE = new Set(['زوجة','بنت','حفيدة','أم','أخت']);
+
+const Reg = (() => {
+  const $ = id => document.getElementById(id);
+  let savedT, db = null, members = [], photoBlob = null, loaded = false;
+
+  try { db = supabase.createClient(CONFIG.url, CONFIG.key); } catch (e) { /* يظهر الخطأ عند الاستخدام */ }
+
+  const photoUrl = p => `${CONFIG.url}/storage/v1/object/public/${CONFIG.bucket}/${p}`;
+  const norm = s => (s || '').replace(/[ً-ْـ]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').toLowerCase().trim();
+  function h(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  /* ---------- التبويبات ---------- */
+  function show(tab) {
+    const isForm = tab === 'form';
+    $('tabForm').setAttribute('aria-selected', isForm); $('tabList').setAttribute('aria-selected', !isForm);
+    $('form').hidden = !isForm; $('list').hidden = isForm;
+    if (!isForm && !loaded) loadMembers();
+  }
+
+  /* ---------- فصيلة الدم ---------- */
+  function buildBlood() {
+    const box = $('blood');
+    [...BLOOD, 'غير معروف'].forEach((b, i) => {
+      const inp = h('input'); inp.type = 'radio'; inp.name = 'blood'; inp.id = 'b' + i; inp.value = b;
+      const lb = h('label', b === 'غير معروف' ? 'wide' : '', b === 'غير معروف' ? 'لا أعرف فصيلة الدم' : b); lb.htmlFor = inp.id;
+      box.append(inp, lb);
+    });
+    for (const b of BLOOD) $('fBlood').append(new Option(b, b));
+  }
+
+  /* ---------- الصورة: تصغير قبل الرفع ---------- */
+  async function compress(file) {
+    const img = await createImageBitmap(file).catch(() => null);
+    if (!img) throw new Error('bad-image');
+    const max = 800, sc = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return new Promise(r => c.toBlob(r, 'image/jpeg', 0.82));
+  }
+  $('photo').addEventListener('change', async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      photoBlob = await compress(f);
+      $('photoPrev').src = URL.createObjectURL(photoBlob); $('photoPrev').hidden = false;
+      $('photoTxt').hidden = true; $('photoRm').hidden = false;
+    } catch { photoBlob = null; setMsg('تعذّر قراءة الصورة — جرّب صورة أخرى', 'err'); }
+    e.target.value = '';
+  });
+  function clearPhoto() { photoBlob = null; $('photoPrev').hidden = true; $('photoPrev').removeAttribute('src'); $('photoTxt').hidden = false; $('photoRm').hidden = true; }
+  $('photoRm').onclick = clearPhoto;
+
+  /* ---------- التحقق والإرسال ---------- */
+  function setErr(f, text) {
+    const el = document.querySelector(`[data-f="${f}"]`);
+    el.classList.toggle('bad', !!text); el.querySelector('.hint').textContent = text || '';
+  }
+  function setMsg(t, cls) { const m = $('msg'); m.textContent = t; m.className = 'msg ' + (cls || ''); }
+  const clean = s => s.trim().replace(/\s+/g, ' ');
+  const digits = s => s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+
+  function addKid(val = '') {
+    if ($('kids').children.length >= 30) return;
+    const row = h('div', 'kid'), inp = h('input'); inp.maxLength = 80; inp.placeholder = 'اسم الابن / البنت'; inp.value = val;
+    const rm = h('button', null, '✕'); rm.type = 'button'; rm.setAttribute('aria-label', 'حذف'); rm.onclick = () => row.remove();
+    row.append(inp, rm); $('kids').append(row); return inp;
+  }
+  $('addKid').onclick = () => addKid().focus();
+
+  // أربع خانات ثابتة: الأولى إلى الرابعة
+  const ORD = ['الأولى', 'الثانية', 'الثالثة', 'الرابعة'];
+  function buildWives() {
+    ORD.forEach((o, i) => {
+      const row = h('div', 'kid'), no = h('label', 'no', o), inp = h('input');
+      inp.id = 'wife' + i; no.htmlFor = inp.id; inp.maxLength = 80; inp.placeholder = 'اسم الزوجة ' + o + (i ? ' (إن وجدت)' : '');
+      row.append(no, inp); $('wives').append(row);
+    });
+  }
+  buildWives();
+
+  function currentGender() { return document.querySelector('input[name=gender]:checked')?.value || ''; }
+  function syncGender() {
+    const male = currentGender() === 'ذكر';
+    $('wivesField').hidden = !male;
+  }
+  document.querySelectorAll('input[name=gender]').forEach(r => r.addEventListener('change', syncGender));
+
+  function read() {
+    const v = {
+      full_name: clean($('full_name').value),
+      relation: $('relation').value,
+      head_name: clean($('head_name').value) || null,
+      area: clean($('area').value),
+      block: digits($('block').value.trim()) || null,
+      cpr: digits($('cpr').value.replace(/[\s-]/g, '')) || null,
+      passport_no: $('passport_no').value.replace(/\s/g, '').toUpperCase() || null,
+      mother_name: clean($('mother_name').value) || null,
+      gender: currentGender() || null,
+      blood_type: document.querySelector('input[name=blood]:checked')?.value || null
+    };
+    const kids = [...$('kids').querySelectorAll('input')].map(i => clean(i.value)).filter(Boolean);
+    v.children = kids.length ? kids : null;
+    const wives = v.gender === 'ذكر' ? [...$('wives').querySelectorAll('input')].map(i => clean(i.value)).filter(Boolean).slice(0, 4) : [];
+    v.wives = wives.length ? wives : null;
+    let ok = true;
+    const chk = (f, cond, text) => { setErr(f, cond ? '' : text); if (!cond) ok = false; };
+    chk('full_name', v.full_name.length >= 3 && v.full_name.split(' ').length >= 2, 'اكتب الاسم الكامل (اسمين على الأقل)');
+    chk('gender', !!v.gender, 'اختر الجنس');
+    chk('relation', !!v.relation, 'اختر صلة القرابة');
+    chk('head_name', v.relation === 'رب الأسرة' || !!v.head_name, 'اكتب اسم رب الأسرة');
+    chk('area', v.area.length >= 2, 'اكتب منطقة السكن');
+    chk('block', !v.block || /^\d{1,4}$/.test(v.block), 'رقم المجمع أرقام فقط (حتى 4)');
+    chk('cpr', !v.cpr || /^\d{9}$/.test(v.cpr), 'الرقم الشخصي 9 أرقام');
+    chk('passport_no', !v.passport_no || /^[A-Z0-9]{5,12}$/.test(v.passport_no), 'رقم الجواز حروف إنجليزية وأرقام فقط');
+    setErr('blood_type', '');
+    if (v.relation === 'رب الأسرة') v.head_name = null;
+    return ok ? v : null;
+  }
+
+  $('relation').addEventListener('change', () => {
+    const rel = $('relation').value;
+    $('headField').style.opacity = rel === 'رب الأسرة' ? .45 : 1;
+    const g = FEMALE.has(rel) ? 'gF' : ['ابن', 'حفيد', 'أب', 'أخ'].includes(rel) ? 'gM' : null;
+    if (g && !currentGender()) { $(g).checked = true; syncGender(); }
+  });
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault(); setMsg('');
+    const v = read();
+    if (!v) {
+      const bad = document.querySelector('.field.bad');
+      bad?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      bad?.querySelector('input:not([type=radio]), select, input')?.focus({ preventScroll: true });
+      setMsg('راجع الحقول المعلّمة بالأحمر', 'err');
+      return;
+    }
+    if (!db) return setMsg('تعذّر الاتصال — تأكد من الإنترنت وأعد تحميل الصفحة', 'err');
+    const btn = $('submitBtn'); btn.disabled = true; btn.classList.remove('saved'); btn.textContent = 'جارٍ التسجيل…';
+    let saved = false;
+    try {
+      if (photoBlob) {
+        const path = `members/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const up = await db.storage.from(CONFIG.bucket).upload(path, photoBlob, { contentType: 'image/jpeg' });
+        if (up.error) throw new Error('photo');
+        v.photo_path = path;
+      }
+      const { error } = await db.from(CONFIG.table).insert(v);
+      if (error) throw error;
+      setMsg(`✓ تم تسجيل ${v.full_name}`, 'ok'); saved = true;
+      // الإبقاء على رب الأسرة والسكن لتسهيل تسجيل بقية الأسرة
+      const keep = { head: v.relation === 'رب الأسرة' ? v.full_name : $('head_name').value, area: $('area').value, block: $('block').value };
+      $('form').reset(); clearPhoto(); $('kids').replaceChildren(); syncGender();
+      $('head_name').value = keep.head; $('area').value = keep.area; $('block').value = keep.block;
+      $('headField').style.opacity = 1;
+      loaded = false; refreshCount();
+      $('full_name').focus();
+    } catch (err) {
+      if (err.code === '23505') { setErr('cpr', 'هذا الرقم الشخصي مسجّل مسبقاً'); setMsg('هذا الشخص مسجّل من قبل', 'err'); return; }
+      setMsg(err.message === 'photo' ? 'تعذّر رفع الصورة — جرّب صورة أصغر أو سجّل بدون صورة' : 'تعذّر التسجيل — تحقق من الإنترنت وحاول مرة أخرى', 'err');
+    } finally {
+      btn.disabled = false;
+      if (saved) {
+        // يتحوّل الزر للأخضر لثوانٍ بعد نجاح الحفظ
+        btn.classList.add('saved'); btn.textContent = '✓ تم الحفظ';
+        clearTimeout(savedT); savedT = setTimeout(() => { btn.classList.remove('saved'); btn.textContent = 'تسجيل'; }, 3000);
+      } else btn.textContent = 'تسجيل';
+    }
+  });
+
+  /* ---------- القائمة ---------- */
+  async function refreshCount() {
+    if (!db) return;
+    const { count, error } = await db.from(CONFIG.table).select('id', { count: 'exact', head: true });
+    $('count').textContent = error ? '—' : count;
+  }
+
+  async function loadMembers() {
+    const box = $('members'); box.replaceChildren(h('div', 'state', 'جارٍ التحميل…')); box.firstChild.style.gridColumn = '1/-1';
+    try {
+      if (!db) throw new Error();
+      const { data, error } = await db.from(CONFIG.table).select(PUBLIC_COLS).order('head_name', { nullsFirst: true }).order('created_at');
+      if (error) throw error;
+      members = data; loaded = true; $('count').textContent = data.length;
+      const areas = [...new Set(data.map(m => m.area))].sort((a, b) => a.localeCompare(b, 'ar'));
+      const sel = $('fArea'), cur = sel.value; sel.length = 1; areas.forEach(a => sel.append(new Option(a, a))); sel.value = cur;
+      renderList();
+    } catch {
+      box.replaceChildren();
+      const s = h('div', 'state', 'تعذّر تحميل القائمة'); s.style.gridColumn = '1/-1';
+      const r = h('button', 'retry', 'إعادة المحاولة'); r.onclick = loadMembers; s.append(h('br'), r); box.append(s);
+    }
+  }
+
+  function renderList() {
+    const t = norm($('search').value), a = $('fArea').value, b = $('fBlood').value;
+    const list = members.filter(m =>
+      (!t || [m.full_name, m.head_name, m.mother_name, ...(m.wives || []), ...(m.children || [])].some(x => norm(x).includes(t))) &&
+      (!a || m.area === a) && (!b || m.blood_type === b));
+
+    const sum = $('summary'); sum.replaceChildren();
+    const pill = (label, n) => { const p = h('span', 'pill'); const bb = h('b', null, label); p.append(bb, ' ' + n); sum.append(p); };
+    const all = h('span', 'pill'); all.append('المعروض ', h('b', null, String(list.length))); sum.append(all);
+    for (const bt of BLOOD) { const n = list.filter(m => m.blood_type === bt).length; if (n) pill(bt, n); }
+
+    const box = $('members'); box.replaceChildren();
+    if (!list.length) { const s = h('div', 'state', members.length ? 'لا توجد نتائج مطابقة' : 'لا يوجد مسجّلون بعد — كن أول من يسجّل'); s.style.gridColumn = '1/-1'; box.append(s); return; }
+    for (const g of groupByFamily(list)) {
+      const head = h('div', 'family', g.title);
+      const n = g.items.length;
+      head.append(h('small', null, n === 1 ? 'فرد واحد' : n === 2 ? 'فردان' : n <= 10 ? `${n} أفراد` : `${n} فرداً`));
+      box.append(head);
+      g.items.forEach(m => box.append(memberCard(m)));
+    }
+  }
+
+  // تجميع الأفراد تحت رب الأسرة — يطابق "محمد عبدالله" مع "محمد عبدالله النشابة"
+  function groupByFamily(list) {
+    const groups = [];
+    const heads = list.filter(m => m.relation === 'رب الأسرة');
+    const byHead = new Map();
+    for (const m of heads) {
+      const g = { key: norm(m.full_name), title: 'أسرة ' + m.full_name, items: [m] };
+      groups.push(g); byHead.set(g.key, g);
+    }
+    for (const m of list) {
+      if (m.relation === 'رب الأسرة') continue;
+      const hn = norm(m.head_name);
+      let g = hn && (byHead.get(hn) || groups.find(x => x.key.startsWith(hn + ' ') || hn.startsWith(x.key + ' ')));
+      if (!g) {
+        const key = hn || '_';
+        g = { key, title: hn ? 'أسرة ' + m.head_name : 'بدون رب أسرة', items: [] };
+        groups.push(g); byHead.set(key, g);
+      }
+      g.items.push(m);
+    }
+    return groups.sort((a, b) => (a.key === '_') - (b.key === '_') || a.title.localeCompare(b.title, 'ar'));
+  }
+
+  function memberCard(m) {
+      const card = h('article', 'member');
+      const av = h(m.photo_path ? 'button' : 'div', 'av' + ((m.gender ? m.gender === 'أنثى' : FEMALE.has(m.relation)) ? ' f' : ''));
+      if (m.photo_path) {
+        const img = h('img'); img.src = photoUrl(m.photo_path); img.alt = m.full_name; img.loading = 'lazy'; av.append(img);
+        av.setAttribute('aria-label', 'عرض صورة ' + m.full_name);
+        av.onclick = () => { $('viewerImg').src = photoUrl(m.photo_path); $('viewerName').textContent = m.full_name; $('viewer').showModal(); };
+      } else av.textContent = m.full_name.charAt(0);
+      const info = h('div', 'm-info');
+      info.append(h('div', 'm-name', m.full_name));
+      info.append(h('div', 'm-sub', m.relation));
+      info.append(h('div', 'm-sub', '📍 ' + m.area + (m.block ? ' · مجمع ' + m.block : '')));
+      if (m.mother_name) info.append(h('div', 'm-sub', 'الأم: ' + m.mother_name));
+      if (m.wives?.length) info.append(h('div', 'm-sub', (m.wives.length > 1 ? 'الزوجات: ' : 'الزوجة: ') + m.wives.join('، ')));
+      if (m.children?.length) {
+        const k = h('div', 'm-kids'); k.append(h('span', null, `الأبناء (${m.children.length})`));
+        k.firstChild.style.borderColor = 'transparent'; k.firstChild.style.color = 'var(--muted)';
+        m.children.forEach(c => k.append(h('span', null, c))); info.append(k);
+      }
+      card.append(av, info);
+      if (m.blood_type && m.blood_type !== 'غير معروف') card.append(h('span', 'bt', m.blood_type));
+      return card;
+  }
+
+  ['search', 'fArea', 'fBlood'].forEach(id => $(id).addEventListener('input', renderList));
+  $('tabForm').onclick = () => show('form');
+  $('tabList').onclick = () => show('list');
+  $('viewer').addEventListener('click', () => $('viewer').close());
+
+  buildBlood(); refreshCount();
+})();
+</script>
+</body>
+</html>
