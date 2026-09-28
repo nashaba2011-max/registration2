@@ -63,7 +63,8 @@
     width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);
     background:rgba(0,0,0,.22);font-size:16px;outline:none;transition:border-color .2s;
   }
-  .field select option{background:#16291f}
+  .field select option{background:#16291f;color:var(--text)}
+  .field select optgroup,.toolbar select optgroup{background:#16291f;color:var(--gold)}
   .field input:focus,.field select:focus{border-color:var(--gold)}
   .field.bad input,.field.bad select{border-color:var(--err)}
   .hint{font-size:12.5px;color:var(--err);margin-top:5px;min-height:0}
@@ -259,16 +260,9 @@
 
     <div class="row">
       <div class="field" data-f="area">
-        <label for="area">السكن (المنطقة) <span class="req">*</span></label>
-        <input id="area" maxlength="50" list="areas" placeholder="مثال: المحرق">
-        <datalist id="areas">
-          <option>المنامة</option><option>المحرق</option><option>الرفاع</option><option>مدينة عيسى</option>
-          <option>مدينة حمد</option><option>عالي</option><option>سترة</option><option>البديع</option>
-          <option>الحد</option><option>عراد</option><option>سند</option><option>توبلي</option>
-          <option>جد حفص</option><option>السنابس</option><option>الجفير</option><option>عوالي</option>
-          <option>سار</option><option>الزنج</option><option>مدينة زايد</option><option>ديار المحرق</option>
-          <option>مدينة سلمان</option><option>مدينة خليفة</option><option>البسيتين</option><option>قلالي</option>
-        </datalist>
+        <label for="areaSel">السكن (المنطقة) <span class="req">*</span></label>
+        <select id="areaSel"></select>
+        <input id="areaOther" maxlength="50" placeholder="اكتب اسم المنطقة" hidden style="margin-top:8px">
         <div class="hint"></div>
       </div>
       <div class="field" data-f="block">
@@ -344,9 +338,28 @@ const CONFIG = {
   table: 'family_members',
   bucket: 'family-photos'
 };
+// المناطق مصنّفة حسب المحافظة
+const REGIONS = {
+  'محافظة العاصمة': [
+    'المنامة','وسط المنامة','سوق المنامة','الحورة','القضيبية','الجفير','الغريفة','العدلية','الماحوز','السقية',
+    'أم الحصم','بو عشيرة','بو غزال','النعيم','القفول','رأس الرمان','المنطقة الدبلوماسية','منطقة الفاتح','سترة','مهزة',
+    'واديان','مركوبان','المعامير','جد حفص','البرهامة','السنابس','الديه','بلاد القديم','الخميس','الصالحية','توبلي',
+    'جد علي','جرداب','سند','ضاحية السيف','كرباباد','النبيه صالح'],
+  'المحافظة الشمالية': ['البديع','سار','المرخ','مقابة','باربار','الدراز','المالكية','دمستان','كرزكان','بني جمرة','داركليب',
+    'شهركان','صدد','الهملة','الجنبية','الجسرة','كرانة','جنوسان','جبلة حبشي','السهلة الشمالية','القدم','أبو قوة','سلماباد',
+    'عالي','بوري','جزيرة جدة','جزيرة أم النعسان','جزر نورانا'],
+  'المحافظة الجنوبية': ['الرفاع الشرقي','الرفاع الغربي','الرفاع الحوزة','مدينة عيسى','عوالي','الزلاق','عسكر','جو','الدور',
+    'الصخير','درة البحرين'],
+  'محافظة المحرق': [
+    'المحرق','فريج الحياك','فريج الصاغة','حالة بو ماهر','عراد','الحد','البسيتين','سماهيج',
+    'الدير','قلالي','أم الشومخ','ديار المحرق','فريص'],
+  'مناطق أخرى': [
+    'مدينة حمد','الزنج','مدينة زايد','مدينة سلمان','مدينة خليفة']
+};
+const govOf = area => Object.keys(REGIONS).find(g => g !== 'مناطق أخرى' && REGIONS[g].includes(area)) || null;
 const BLOOD = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 // الأعمدة المسموح عرضها — الرقم الشخصي والجواز غير قابلين للقراءة من الموقع
-const PUBLIC_COLS = 'id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives,husband_name';
+const PUBLIC_COLS = 'governorate,id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives,husband_name';
 const FEMALE = new Set(['زوجة','بنت','حفيدة','أم','أخت']);
 
 const Reg = (() => {
@@ -368,6 +381,27 @@ const Reg = (() => {
   }
 
   /* ---------- فصيلة الدم ---------- */
+  function buildAreas() {
+    const sel = $('areaSel');
+    sel.append(new Option('اختر المنطقة…', ''));
+    for (const [g, list] of Object.entries(REGIONS)) {
+      const og = document.createElement('optgroup'); og.label = g;
+      list.forEach(a => og.append(new Option(a, a))); sel.append(og);
+    }
+    sel.append(new Option('منطقة غير موجودة — اكتبها', '__other'));
+    sel.addEventListener('change', () => {
+      $('areaOther').hidden = sel.value !== '__other';
+      if (sel.value === '__other') $('areaOther').focus();
+    });
+  }
+  const getArea = () => $('areaSel').value === '__other' ? clean($('areaOther').value) : $('areaSel').value;
+  function setArea(a) {
+    const sel = $('areaSel');
+    if (!a) { sel.value = ''; $('areaOther').value = ''; $('areaOther').hidden = true; return; }
+    const known = Object.values(REGIONS).some(l => l.includes(a));
+    sel.value = known ? a : '__other'; $('areaOther').value = known ? '' : a; $('areaOther').hidden = known;
+  }
+
   function buildBlood() {
     const box = $('blood');
     [...BLOOD, 'غير معروف'].forEach((b, i) => {
@@ -396,6 +430,7 @@ const Reg = (() => {
     } catch { photoBlob = null; setMsg('تعذّر قراءة الصورة — جرّب صورة أخرى', 'err'); }
     e.target.value = '';
   });
+  $('form').addEventListener('reset', () => setTimeout(() => { $('areaOther').hidden = $('areaSel').value !== '__other'; }));
   function clearPhoto() { if (editing?.photo_path) photoRemoved = true; photoBlob = null; $('photoPrev').hidden = true; $('photoPrev').removeAttribute('src'); $('photoTxt').hidden = false; $('photoRm').hidden = true; }
   $('photoRm').onclick = clearPhoto;
 
@@ -444,7 +479,7 @@ const Reg = (() => {
       full_name: clean($('full_name').value),
       relation: $('relation').value,
       head_name: clean($('head_name').value) || null,
-      area: clean($('area').value),
+      area: getArea(),
       block: digits($('block').value.trim()) || null,
       cpr: digits($('cpr').value.replace(/[\s-]/g, '')) || null,
       passport_no: $('passport_no').value.replace(/\s/g, '').toUpperCase() || null,
@@ -463,7 +498,8 @@ const Reg = (() => {
     chk('gender', !!v.gender, 'اختر الجنس');
     chk('relation', !!v.relation, 'اختر صلة القرابة');
     chk('head_name', v.relation === 'رب الأسرة' || !!v.head_name, 'اكتب اسم رب الأسرة');
-    chk('area', v.area.length >= 2, 'اكتب منطقة السكن');
+    chk('area', v.area.length >= 2, $('areaSel').value === '__other' ? 'اكتب اسم المنطقة' : 'اختر منطقة السكن');
+    v.governorate = govOf(v.area);
     chk('block', !v.block || /^\d{1,4}$/.test(v.block), 'رقم المجمع أرقام فقط (حتى 4)');
     chk('cpr', !v.cpr || /^\d{9}$/.test(v.cpr), 'الرقم الشخصي 9 أرقام');
     chk('passport_no', !v.passport_no || /^[A-Z0-9]{5,12}$/.test(v.passport_no), 'رقم الجواز حروف إنجليزية وأرقام فقط');
@@ -513,9 +549,9 @@ const Reg = (() => {
       if (error) throw error;
       setMsg(`✓ تم تسجيل ${v.full_name}`, 'ok'); saved = true;
       // الإبقاء على رب الأسرة والسكن لتسهيل تسجيل بقية الأسرة
-      const keep = { head: v.relation === 'رب الأسرة' ? v.full_name : $('head_name').value, area: $('area').value, block: $('block').value };
+      const keep = { head: v.relation === 'رب الأسرة' ? v.full_name : $('head_name').value, area: v.area, block: $('block').value };
       $('form').reset(); clearPhoto(); $('kids').replaceChildren(); syncGender();
-      $('head_name').value = keep.head; $('area').value = keep.area; $('block').value = keep.block;
+      $('head_name').value = keep.head; setArea(keep.area); $('block').value = keep.block;
       $('headField').style.opacity = 1;
       loaded = false; refreshCount();
       if (childCtx) { childCtx = null; $('childBar').hidden = true; renderKidPrompt(); }
@@ -586,7 +622,7 @@ const Reg = (() => {
     syncGender();
     $('full_name').value = childFullName(plan, name);
     $('head_name').value = plan.head; $('mother_name').value = plan.mother;
-    $('area').value = plan.area; $('block').value = plan.block;
+    setArea(plan.area); $('block').value = plan.block;
     $('headField').style.opacity = 1;
     $('childTxt').textContent = `تسجيل «${name}» — اختر الجنس وأكمل البيانات`;
     $('childBar').hidden = false; $('kidPrompt').hidden = true; setMsg('');
@@ -640,7 +676,7 @@ const Reg = (() => {
     $('husband_name').value = r.husband_name || '';
     $('relation').value = r.relation || ''; $('head_name').value = r.head_name || '';
     $('headField').style.opacity = r.relation === 'رب الأسرة' ? .45 : 1;
-    $('area').value = r.area || ''; $('block').value = r.block || '';
+    setArea(r.area || ''); $('block').value = r.block || '';
     const b = document.querySelector(`input[name=blood][value="${r.blood_type}"]`); if (b) b.checked = true;
     syncGender();
     (r.wives || []).forEach((w, i) => { if ($('wife' + i)) $('wife' + i).value = w; });
@@ -677,7 +713,16 @@ const Reg = (() => {
       if (error) throw error;
       members = data; loaded = true; $('count').textContent = data.length;
       const areas = [...new Set(data.map(m => m.area))].sort((a, b) => a.localeCompare(b, 'ar'));
-      const sel = $('fArea'), cur = sel.value; sel.length = 1; areas.forEach(a => sel.append(new Option(a, a))); sel.value = cur;
+      const sel = $('fArea'), cur = sel.value; sel.replaceChildren(new Option('كل المناطق', ''));
+      const groups = {};
+      areas.forEach(a => (groups[govOf(a) || 'مناطق أخرى'] ||= []).push(a));
+      const order = Object.keys(REGIONS);
+      for (const g of Object.keys(groups).sort((x, y) => order.indexOf(x) - order.indexOf(y))) {
+        const og = document.createElement('optgroup'); og.label = g;
+        if (g !== 'مناطق أخرى') og.append(new Option('كل ' + g, 'gov:' + g));
+        groups[g].forEach(a => og.append(new Option(a, a))); sel.append(og);
+      }
+      sel.value = cur;
       renderList();
     } catch {
       box.replaceChildren();
@@ -690,7 +735,7 @@ const Reg = (() => {
     const t = norm($('search').value), a = $('fArea').value, b = $('fBlood').value;
     const list = members.filter(m =>
       (!t || [m.full_name, m.head_name, m.mother_name, m.husband_name, ...(m.wives || []), ...(m.children || [])].some(x => norm(x).includes(t))) &&
-      (!a || m.area === a) && (!b || m.blood_type === b));
+      (!a || (a.startsWith('gov:') ? govOf(m.area) === a.slice(4) : m.area === a)) && (!b || m.blood_type === b));
 
     const sum = $('summary'); sum.replaceChildren();
     const pill = (label, n) => { const p = h('span', 'pill'); const bb = h('b', null, label); p.append(bb, ' ' + n); sum.append(p); };
@@ -742,7 +787,8 @@ const Reg = (() => {
       const info = h('div', 'm-info');
       info.append(h('div', 'm-name', m.full_name));
       info.append(h('div', 'm-sub', m.relation));
-      info.append(h('div', 'm-sub', '📍 ' + m.area + (m.block ? ' · مجمع ' + m.block : '')));
+      const gov = govOf(m.area);
+      info.append(h('div', 'm-sub', '📍 ' + m.area + (m.block ? ' · مجمع ' + m.block : '') + (gov ? ' · ' + gov : '')));
       if (m.mother_name) info.append(h('div', 'm-sub', 'الأم: ' + m.mother_name));
       if (m.husband_name) info.append(h('div', 'm-sub', 'الزوج: ' + m.husband_name));
       if (m.wives?.length) info.append(h('div', 'm-sub', (m.wives.length > 1 ? 'الزوجات: ' : 'الزوجة: ') + m.wives.join('، ')));
@@ -762,7 +808,7 @@ const Reg = (() => {
   $('tabList').onclick = () => show('list');
   $('viewer').addEventListener('click', () => $('viewer').close());
 
-  buildBlood(); refreshCount();
+  buildAreas(); buildBlood(); refreshCount();
 })();
 </script>
 </body>
