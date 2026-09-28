@@ -188,7 +188,7 @@
 
   <div class="tabs" role="tablist">
     <button role="tab" id="tabForm" aria-selected="true">تسجيل فرد</button>
-    <button role="tab" id="tabList" aria-selected="false">المسجّلون <span class="count" id="count">…</span></button>
+    <button role="tab" id="tabList" aria-selected="false">🔒 المسجّلون <span class="count" id="count">…</span></button>
   </div>
 
   <!-- ===== النموذج ===== -->
@@ -311,9 +311,10 @@
   <!-- ===== القائمة ===== -->
   <section id="list" hidden>
     <div class="toolbar">
-      <input id="search" type="search" placeholder="ابحث بالاسم أو الأم أو الأبناء…">
+      <input id="search" type="search" placeholder="ابحث في كل الحقول: اسم، منطقة، مجمع، فصيلة، رقم شخصي…">
       <select id="fArea"><option value="">كل المناطق</option></select>
       <select id="fBlood"><option value="">كل الفصائل</option></select>
+      <button type="button" class="retry" id="adminOut" style="margin:0">خروج المشرف</button>
     </div>
     <div class="summary" id="summary"></div>
     <div id="members" class="grid"></div>
@@ -322,9 +323,9 @@
 
 <dialog id="unlock">
   <form id="unlockForm" method="dialog" novalidate>
-    <h2>تعديل التسجيل</h2>
-    <p>لتعديل بيانات <b id="unlockName"></b> أدخل <b>الرقم الشخصي</b> المسجّل له، أو رمز المشرف.</p>
-    <input id="unlockCode" inputmode="text" autocomplete="off" maxlength="20" placeholder="الرقم الشخصي أو رمز المشرف">
+    <h2 id="unlockTitle">دخول المشرف</h2>
+    <p id="unlockTxt">قائمة المسجّلين للمشرف فقط — أدخل رمز المشرف.</p>
+    <input id="unlockCode" inputmode="text" autocomplete="off" maxlength="20" placeholder="رمز المشرف">
     <div class="err" id="unlockErr"></div>
     <div class="acts"><button class="go" id="unlockGo" type="submit">متابعة</button><button type="button" id="unlockCancel">إلغاء</button></div>
   </form>
@@ -358,13 +359,11 @@ const REGIONS = {
 };
 const govOf = area => Object.keys(REGIONS).find(g => g !== 'مناطق أخرى' && REGIONS[g].includes(area)) || null;
 const BLOOD = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
-// الأعمدة المسموح عرضها — الرقم الشخصي والجواز غير قابلين للقراءة من الموقع
-const PUBLIC_COLS = 'governorate,id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives,husband_name';
 const FEMALE = new Set(['زوجة','بنت','حفيدة','أم','أخت']);
 
 const Reg = (() => {
   const $ = id => document.getElementById(id);
-  let editing = null, photoRemoved = false, savedT, db = null, members = [], photoBlob = null, loaded = false;
+  let adminCode = null, editing = null, photoRemoved = false, savedT, db = null, members = [], photoBlob = null, loaded = false;
 
   try { db = supabase.createClient(CONFIG.url, CONFIG.key); } catch (e) { /* يظهر الخطأ عند الاستخدام */ }
 
@@ -377,6 +376,8 @@ const Reg = (() => {
     const isForm = tab === 'form';
     $('tabForm').setAttribute('aria-selected', isForm); $('tabList').setAttribute('aria-selected', !isForm);
     $('form').hidden = !isForm; $('list').hidden = isForm;
+    if (!isForm && !adminCode) { $('list').hidden = true; $('form').hidden = false;
+      $('tabForm').setAttribute('aria-selected', true); $('tabList').setAttribute('aria-selected', false); openAdminLogin(); return; }
     if (!isForm && !loaded) loadMembers();
   }
 
@@ -543,6 +544,7 @@ const Reg = (() => {
         setMsg(`✓ تم حفظ تعديلات ${v.full_name}`, 'ok'); saved = true;
         endEdit(); loaded = false;
         offerKids(v);
+        if ($('kidPrompt').hidden && adminCode) setTimeout(() => show('list'), 1200);
         return;
       }
       const { error } = await db.from(CONFIG.table).insert(v);
@@ -641,23 +643,35 @@ const Reg = (() => {
   const submitLabel = () => editing ? 'حفظ التعديلات' : 'تسجيل';
   let unlockTarget = null;
 
-  function openUnlock(m) {
-    unlockTarget = m;
-    $('unlockName').textContent = m.full_name; $('unlockCode').value = ''; $('unlockErr').textContent = '';
+  function openAdminLogin() {
+    unlockTarget = null;
+    $('unlockTitle').textContent = 'دخول المشرف';
+    $('unlockTxt').textContent = 'قائمة المسجّلين للمشرف فقط — أدخل رمز المشرف.';
+    $('unlockCode').value = ''; $('unlockErr').textContent = '';
     $('unlock').showModal(); setTimeout(() => $('unlockCode').focus(), 50);
   }
+  // المشرف داخل مسبقاً، فيفتح التعديل مباشرة برمزه
+  async function openUnlock(m) {
+    try {
+      const { data, error } = await db.rpc('family_get_member', { p_id: m.id, p_code: adminCode });
+      if (error) throw error;
+      if (!data?.length) { adminCode = null; show('form'); return; }
+      startEdit(data[0], adminCode);
+    } catch { setMsg('تعذّر فتح التعديل — تحقق من الإنترنت', 'err'); show('form'); }
+  }
   $('unlockCancel').onclick = () => $('unlock').close();
+  $('adminOut').onclick = () => { adminCode = null; members = []; loaded = false; $('members').replaceChildren(); show('form'); };
   $('unlockForm').addEventListener('submit', async e => {
     e.preventDefault();
     const code = digits($('unlockCode').value.replace(/[\s-]/g, ''));
-    if (!code) return $('unlockErr').textContent = 'أدخل الرقم الشخصي أو رمز المشرف';
+    if (!code) return $('unlockErr').textContent = 'أدخل رمز المشرف';
     if (!db) return $('unlockErr').textContent = 'تعذّر الاتصال — تحقق من الإنترنت';
     const go = $('unlockGo'); go.disabled = true; go.textContent = 'جارٍ التحقق…';
     try {
-      const { data, error } = await db.rpc('family_get_member', { p_id: unlockTarget.id, p_code: code });
+      const { data, error } = await db.rpc('family_list_members', { p_code: code });
       if (error) throw error;
-      if (!data || !data.length) { $('unlockErr').textContent = 'الرمز غير صحيح'; return; }
-      $('unlock').close(); startEdit(data[0], code);
+      if (!data?.ok) { $('unlockErr').textContent = 'رمز المشرف غير صحيح'; return; }
+      adminCode = code; $('unlock').close(); loaded = false; show('list');
     } catch (err) {
       $('unlockErr').textContent = /too_many_attempts/.test(err.message || '')
         ? 'محاولات خاطئة كثيرة — حاول بعد 15 دقيقة' : 'تعذّر التحقق — تحقق من الإنترنت وحاول مرة أخرى';
@@ -696,21 +710,23 @@ const Reg = (() => {
     $('headField').style.opacity = 1;
     $('submitBtn').textContent = submitLabel();
   }
-  $('cancelEdit').onclick = () => { endEdit(); setMsg(''); show('list'); };
+  $('cancelEdit').onclick = () => { endEdit(); setMsg(''); if (adminCode) show('list'); };
 
   /* ---------- القائمة ---------- */
   async function refreshCount() {
     if (!db) return;
-    const { count, error } = await db.from(CONFIG.table).select('id', { count: 'exact', head: true });
-    $('count').textContent = error ? '—' : count;
+    const { data, error } = await db.rpc('family_count');
+    $('count').textContent = error ? '—' : data;
   }
 
   async function loadMembers() {
     const box = $('members'); box.replaceChildren(h('div', 'state', 'جارٍ التحميل…')); box.firstChild.style.gridColumn = '1/-1';
     try {
       if (!db) throw new Error();
-      const { data, error } = await db.from(CONFIG.table).select(PUBLIC_COLS).order('head_name', { nullsFirst: true }).order('created_at');
+      const { data: res, error } = await db.rpc('family_list_members', { p_code: adminCode });
       if (error) throw error;
+      if (!res.ok) { adminCode = null; members = []; loaded = false; box.replaceChildren(); show('form'); return; }
+      const data = res.rows; data.forEach(r => delete r._q);
       members = data; loaded = true; $('count').textContent = data.length;
       const areas = [...new Set(data.map(m => m.area))].sort((a, b) => a.localeCompare(b, 'ar'));
       const sel = $('fArea'), cur = sel.value; sel.replaceChildren(new Option('كل المناطق', ''));
@@ -731,10 +747,21 @@ const Reg = (() => {
     }
   }
 
+  const toLatinDigits = s => (s || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  // نص واحد يجمع كل حقول الشخص للبحث فيها كلها
+  function searchText(m) {
+    return m._q ??= norm([
+      m.full_name, m.gender, m.relation, m.head_name, m.mother_name, m.husband_name,
+      ...(m.wives || []), ...(m.children || []),
+      m.area, govOf(m.area) || m.governorate, m.block && 'مجمع ' + m.block, m.blood_type,
+      m.cpr, m.passport_no
+    ].filter(Boolean).join(' | '));
+  }
+
   function renderList() {
-    const t = norm($('search').value), a = $('fArea').value, b = $('fBlood').value;
+    const terms = norm(toLatinDigits($('search').value)).split(/\s+/).filter(Boolean), a = $('fArea').value, b = $('fBlood').value;
     const list = members.filter(m =>
-      (!t || [m.full_name, m.head_name, m.mother_name, m.husband_name, ...(m.wives || []), ...(m.children || [])].some(x => norm(x).includes(t))) &&
+      (!terms.length || terms.every(w => searchText(m).includes(w))) &&
       (!a || (a.startsWith('gov:') ? govOf(m.area) === a.slice(4) : m.area === a)) && (!b || m.blood_type === b));
 
     const sum = $('summary'); sum.replaceChildren();
@@ -789,6 +816,7 @@ const Reg = (() => {
       info.append(h('div', 'm-sub', m.relation));
       const gov = govOf(m.area);
       info.append(h('div', 'm-sub', '📍 ' + m.area + (m.block ? ' · مجمع ' + m.block : '') + (gov ? ' · ' + gov : '')));
+      if (m.cpr || m.passport_no) info.append(h('div', 'm-sub', '🔒 ' + [m.cpr && 'الرقم الشخصي: ' + m.cpr, m.passport_no && 'الجواز: ' + m.passport_no].filter(Boolean).join(' · ')));
       if (m.mother_name) info.append(h('div', 'm-sub', 'الأم: ' + m.mother_name));
       if (m.husband_name) info.append(h('div', 'm-sub', 'الزوج: ' + m.husband_name));
       if (m.wives?.length) info.append(h('div', 'm-sub', (m.wives.length > 1 ? 'الزوجات: ' : 'الزوجة: ') + m.wives.join('، ')));
