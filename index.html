@@ -285,6 +285,11 @@
     </div>
 
     <div class="sec">الأسرة</div>
+    <div class="field" data-f="husband_name" id="husbandField" hidden>
+      <label for="husband_name">اسم الزوج <small style="opacity:.7">(إن كانت متزوجة)</small></label>
+      <input id="husband_name" maxlength="80" placeholder="الاسم الكامل للزوج">
+      <div class="hint"></div>
+    </div>
     <div class="field" data-f="wives" id="wivesField" hidden>
       <label>الزوجات</label>
       <div class="kids" id="wives"></div>
@@ -341,7 +346,7 @@ const CONFIG = {
 };
 const BLOOD = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 // الأعمدة المسموح عرضها — الرقم الشخصي والجواز غير قابلين للقراءة من الموقع
-const PUBLIC_COLS = 'id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives';
+const PUBLIC_COLS = 'id,full_name,relation,head_name,area,block,blood_type,photo_path,created_at,mother_name,children,gender,wives,husband_name';
 const FEMALE = new Set(['زوجة','بنت','حفيدة','أم','أخت']);
 
 const Reg = (() => {
@@ -430,6 +435,7 @@ const Reg = (() => {
     }
     const male = currentGender() === 'ذكر';
     $('wivesField').hidden = !male;
+    $('husbandField').hidden = currentGender() !== 'أنثى';
   }
   document.querySelectorAll('input[name=gender]').forEach(r => r.addEventListener('change', syncGender));
 
@@ -443,6 +449,7 @@ const Reg = (() => {
       cpr: digits($('cpr').value.replace(/[\s-]/g, '')) || null,
       passport_no: $('passport_no').value.replace(/\s/g, '').toUpperCase() || null,
       mother_name: clean($('mother_name').value) || null,
+      husband_name: currentGender() === 'أنثى' ? (clean($('husband_name').value) || null) : null,
       gender: currentGender() || null,
       blood_type: document.querySelector('input[name=blood]:checked')?.value || null
     };
@@ -540,7 +547,7 @@ const Reg = (() => {
     else if (p.relation === 'ابن' || p.relation === 'بنت') { m = 'حفيد'; f = 'حفيدة'; }
     return {
       parent: p.full_name, head: head || '', m, f,
-      prefix: male ? p.full_name : '',
+      prefix: male ? p.full_name : (p.husband_name || ''),
       mother: male ? ((p.wives || []).length === 1 ? p.wives[0] : '') : p.full_name,
       area: p.area || '', block: p.block || ''
     };
@@ -630,6 +637,7 @@ const Reg = (() => {
     if (r.gender) $(r.gender === 'أنثى' ? 'gF' : 'gM').checked = true;
     $('cpr').value = r.cpr || ''; $('passport_no').value = r.passport_no || '';
     $('mother_name').value = r.mother_name || '';
+    $('husband_name').value = r.husband_name || '';
     $('relation').value = r.relation || ''; $('head_name').value = r.head_name || '';
     $('headField').style.opacity = r.relation === 'رب الأسرة' ? .45 : 1;
     $('area').value = r.area || ''; $('block').value = r.block || '';
@@ -681,7 +689,7 @@ const Reg = (() => {
   function renderList() {
     const t = norm($('search').value), a = $('fArea').value, b = $('fBlood').value;
     const list = members.filter(m =>
-      (!t || [m.full_name, m.head_name, m.mother_name, ...(m.wives || []), ...(m.children || [])].some(x => norm(x).includes(t))) &&
+      (!t || [m.full_name, m.head_name, m.mother_name, m.husband_name, ...(m.wives || []), ...(m.children || [])].some(x => norm(x).includes(t))) &&
       (!a || m.area === a) && (!b || m.blood_type === b));
 
     const sum = $('summary'); sum.replaceChildren();
@@ -736,6 +744,7 @@ const Reg = (() => {
       info.append(h('div', 'm-sub', m.relation));
       info.append(h('div', 'm-sub', '📍 ' + m.area + (m.block ? ' · مجمع ' + m.block : '')));
       if (m.mother_name) info.append(h('div', 'm-sub', 'الأم: ' + m.mother_name));
+      if (m.husband_name) info.append(h('div', 'm-sub', 'الزوج: ' + m.husband_name));
       if (m.wives?.length) info.append(h('div', 'm-sub', (m.wives.length > 1 ? 'الزوجات: ' : 'الزوجة: ') + m.wives.join('، ')));
       if (m.children?.length) {
         const k = h('div', 'm-kids'); k.append(h('span', null, `الأبناء (${m.children.length})`));
